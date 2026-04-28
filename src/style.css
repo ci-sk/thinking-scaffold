@@ -1,0 +1,47 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-warm: #c7853a;
+  --color-warm-light: #e8a95b;
+  --color-warm-bg: rgba(199, 133, 58, 0.08);
+  --color-cream: #faf8f5;
+  --color-canvas: #f0eee8;
+  --color-card-shadow: rgba(0, 0, 0, 0.06);
+  --color-card-shadow-hover: rgba(0, 0, 0, 0.12);
+
+  --color-card-idea: #e8a95b;
+  --color-card-quote: #6baed6;
+  --color-card-case: #74c476;
+  --color-card-question: #9e9ac8;
+
+  --color-line-support: #74c476;
+  --color-line-refute: #e57373;
+  --color-line-extend: #6baed6;
+  --color-line-related: #bdbdbd;
+
+  --font-sans: 'Inter', 'PingFang SC', system-ui, sans-serif;
+  --font-serif: 'Georgia', 'Noto Serif SC', serif;
+}
+
+body {
+  margin: 0;
+  overflow: hidden;
+  font-family: var(--font-sans);
+  background: var(--color-cream);
+  color: #333;
+}
+
+#app {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.card-shadow {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.card-shadow-hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12), 0 2px 4px rgba(0, 0, 0, 0.08);
+}
