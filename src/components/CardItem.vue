@@ -10,8 +10,6 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   delete: [id: string]
-  startConnect: [cardId: string, e: MouseEvent, dir: AnchorDir]
-  startConnectTouch: [cardId: string, e: TouchEvent, dir: AnchorDir]
   update: [id: string, changes: Partial<Card>]
 }>()
 
@@ -45,18 +43,6 @@ function onEditorKeydown(e: KeyboardEvent) {
   }
 }
 
-function onAnchorMouseDown(e: MouseEvent, dir: AnchorDir) {
-  e.stopPropagation()
-  e.preventDefault()
-  emit('startConnect', props.card.id, e, dir)
-}
-
-function onAnchorTouchStart(e: TouchEvent, dir: AnchorDir) {
-  e.stopPropagation()
-  e.preventDefault()
-  emit('startConnectTouch', props.card.id, e, dir)
-}
-
 function onDelete(e: MouseEvent) {
   e.stopPropagation()
   emit('delete', props.card.id)
@@ -87,8 +73,6 @@ function onDelete(e: MouseEvent) {
       v-for="dir in anchors"
       :key="dir"
       :class="['connector-anchor', dir]"
-      @mousedown="onAnchorMouseDown($event, dir)"
-      @touchstart.prevent="onAnchorTouchStart($event, dir)"
     />
 
     <!-- Editor overlay -->
@@ -275,6 +259,30 @@ function onDelete(e: MouseEvent) {
 
 .btn-save:hover {
   background: #b07530;
+}
+
+/* Scoped deeper since .shattering is added dynamically */
+:global(.shattering) {
+  animation: shatter 0.4s ease-in forwards !important;
+  pointer-events: none !important;
+}
+
+@keyframes shatter {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+    filter: blur(0);
+  }
+  60% {
+    transform: scale(1.1);
+    opacity: 0.4;
+    filter: blur(2px);
+  }
+  100% {
+    transform: scale(0.3);
+    opacity: 0;
+    filter: blur(6px);
+  }
 }
 
 @media (max-width: 800px) {

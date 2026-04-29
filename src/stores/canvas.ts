@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import type { Card, Connection, TopicGroup, CardType, InboxItem } from '../types'
+import type { Card, Connection, TopicGroup, CardType, InboxItem, LineStyle } from '../types'
 
 function uid(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8)
@@ -88,7 +88,7 @@ export const useCanvasStore = defineStore('canvas', () => {
     target.updatedAt = Date.now()
   }
 
-  function addConnection(from: string, to: string, color?: string): Connection {
+  function addConnection(from: string, to: string, color?: string, style?: LineStyle, label?: string): Connection {
     const exists = connections.value.find(
       c => (c.from === from && c.to === to) || (c.from === to && c.to === from)
     )
@@ -99,6 +99,8 @@ export const useCanvasStore = defineStore('canvas', () => {
       from,
       to,
       color: color || '#c7853a',
+      style: style || 'none',
+      label: label || '相关',
       createdAt: Date.now(),
     }
     connections.value.push(conn)
@@ -156,10 +158,10 @@ export const useCanvasStore = defineStore('canvas', () => {
       { id:'c5', type:'question', content:'外在激励会不会削弱内在动机？', source:'追问', tags:[], position:{x:200,y:430}, rotation:0, createdAt:Date.now(), updatedAt:Date.now(), importance:1 },
     ]
     connections.value = [
-      { id:'l1', from:'c1', to:'c2', color:'#a0b8c4', createdAt:Date.now() },
-      { id:'l2', from:'c3', to:'c4', color:'#b8c9b0', createdAt:Date.now() },
-      { id:'l3', from:'c1', to:'c3', color:'#d4c4a8', createdAt:Date.now() },
-      { id:'l4', from:'c3', to:'c5', color:'#c4b8d4', createdAt:Date.now() },
+      { id:'l1', from:'c1', to:'c2', color:'#a0b8c4', style:'solid' as LineStyle, label:'支撑', createdAt:Date.now() },
+      { id:'l2', from:'c3', to:'c4', color:'#b8c9b0', style:'solid' as LineStyle, label:'支撑', createdAt:Date.now() },
+      { id:'l3', from:'c1', to:'c3', color:'#d4c4a8', style:'dotted' as LineStyle, label:'延伸', createdAt:Date.now() },
+      { id:'l4', from:'c3', to:'c5', color:'#c4b8d4', style:'dashed' as LineStyle, label:'反驳', createdAt:Date.now() },
     ]
     inboxIdea.value = [
       { id:'ii1', text:'用AI做个性化激励策略', source:'thought', tag:'闪念' },

@@ -1,6 +1,6 @@
 export type CardType = 'idea' | 'quote' | 'case' | 'question'
 export type RelationType = 'support' | 'refute' | 'extend' | 'related'
-export type LineStyle = 'solid' | 'dashed' | 'dotted'
+export type LineStyle = 'solid' | 'dashed' | 'dotted' | 'none'
 export type AnchorDir = 'top' | 'bottom' | 'left' | 'right'
 
 export interface CardPosition {
