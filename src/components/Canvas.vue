@@ -528,16 +528,107 @@ function onCardDelete(id: string) {
   } else { store.deleteCard(id); redrawKey.value++ }
 }
 
+function onMoveToInbox(id: string) {
+  const card = store.getCard(id)
+  if (!card) return
+  const modeMap: Record<string, 'idea' | 'clip' | 'question'> = { idea: 'idea', quote: 'clip', case: 'clip', question: 'question' }
+  const mode = modeMap[card.type] || 'idea'
+  store.addInboxItem(mode, { id: Date.now().toString(36), text: card.content, source: card.source || mode, tag: '撤回' })
+  store.deleteCard(id)
+  redrawKey.value++
+}
+
 function onCardUpdate(id: string, changes: Partial<import('../types').Card>) { store.updateCard(id, changes); redrawKey.value++ }
 function onCanvasClick() {}
 
 watch(() => store.connections.length, () => nextTick(() => drawSvgConnections()))
 watch(() => store.cards.length, () => nextTick(() => drawSvgConnections()))
 watch(redrawKey, () => nextTick(() => drawSvgConnections()))
+watch(() => store.activeWorkspaceId, () => nextTick(() => { redrawKey.value++; drawSvgConnections() }))
 watch(scale, () => { nextTick(() => drawSvgConnections()) })
+watch(() => store.pendingPlacement, (placement) => {
+  if (!placement || !canvasContainer.value) return
+  _placePendingCard(placement)
+})
+
+function _placePendingCard(placement: NonNullable<typeof store.pendingPlacement>) {
+  if (!canvasContainer.value) return
+  const rect = canvasContainer.value.getBoundingClientRect()
+  // Visible area in screen coords
+  const vx = rect.left, vy = rect.top, vw = rect.width, vh = rect.height
+  // Center of visible area → local
+  const local = screenToLocal(vx + vw / 2, vy + vh / 2)
+
+  const pos = findNonOverlappingPosition(local.x - 110, local.y - 50, vx, vy, vw, vh)
+
+  store.addCard({
+    type: placement.type, content: placement.content, source: placement.source,
+    position: pos,
+  })
+  store.pendingPlacement = null
+  store.triggerSave()
+  redrawKey.value++
+}
+
+function findNonOverlappingPosition(startX: number, startY: number, vx: number, vy: number, vw: number, vh: number): { x: number; y: number } {
+  const w = 220, h = 140
+
+  const vx1 = screenToLocal(vx, vy).x
+  const vy1 = screenToLocal(vx, vy).y
+  const vx2 = screenToLocal(vx + vw, vy + vh).x
+  const vy2 = screenToLocal(vx + vw, vy + vh).y
+
+  const marginLeft = vx1 + 20
+  const marginTop = vy1 + 20
+  const marginRight = vx2 - w - 20
+  const marginBottom = vy2 - h - 20
+
+  function overlapRatio(x: number, y: number): number {
+    let maxRatio = 0
+    for (const card of store.cards) {
+      const ox = Math.max(0, Math.min(x + w, card.position.x + 220) - Math.max(x, card.position.x))
+      const oy = Math.max(0, Math.min(y + h, card.position.y + 120) - Math.max(y, card.position.y))
+      const ratio = (ox * oy) / (w * h)
+      if (ratio > maxRatio) maxRatio = ratio
+    }
+    return maxRatio
+  }
+
+  // Collect all valid positions: in view + overlap < 50%
+  const candidates: [number, number][] = []
+
+  // Scan visible area, 200 random attempts
+  for (let i = 0; i < 200; i++) {
+    const x = marginLeft + Math.random() * Math.max(0, marginRight - marginLeft)
+    const y = marginTop + Math.random() * Math.max(0, marginBottom - marginTop)
+    if (overlapRatio(x, y) < 0.5) {
+      candidates.push([x, y])
+    }
+  }
+
+  // If found valid positions, pick one furthest from center (most spread)
+  if (candidates.length > 0) {
+    candidates.sort((a, b) => {
+      const da = Math.hypot(a[0] - startX, a[1] - startY)
+      const db = Math.hypot(b[0] - startX, b[1] - startY)
+      return db - da // furthest first
+    })
+    // Pick randomly from top 30% most spread
+    const topN = Math.max(1, Math.floor(candidates.length * 0.3))
+    const pick = candidates[Math.floor(Math.random() * topN)]
+    return { x: pick[0], y: pick[1] }
+  }
+
+  // Fallback: random position within view
+  return {
+    x: marginLeft + Math.random() * Math.max(0, marginRight - marginLeft),
+    y: marginTop + Math.random() * Math.max(0, marginBottom - marginTop),
+  }
+}
+
 
 onMounted(() => {
-  store.initSeedData(); nextTick(() => drawSvgConnections())
+  store.init(); nextTick(() => drawSvgConnections())
   if (canvasContainer.value) canvasContainer.value.addEventListener('wheel', onCanvasWheelHandler, { passive: false })
 })
 onUnmounted(() => {
@@ -563,6 +654,7 @@ onUnmounted(() => {
         v-for="card in store.cards" :key="card.id"
         :card="card" :selected="card.id === draggingCardId"
         @delete="onCardDelete"
+        @move-to-inbox="onMoveToInbox"
         @update="onCardUpdate"
       />
     </div>

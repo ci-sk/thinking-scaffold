@@ -10,6 +10,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   delete: [id: string]
+  moveToInbox: [id: string]
   update: [id: string, changes: Partial<Card>]
 }>()
 
@@ -67,6 +68,7 @@ function onDelete(e: MouseEvent) {
     <div class="card-content">{{ card.content }}</div>
     <div v-if="card.source" class="card-source">{{ card.source }}</div>
     <button class="card-close" @click="onDelete" title="删除">×</button>
+    <button class="card-inbox" @click="emit('moveToInbox', card.id)" title="撤回收件箱">↩</button>
 
     <!-- Connection anchors -->
     <div
@@ -183,6 +185,32 @@ function onDelete(e: MouseEvent) {
 .card-close:hover {
   background: #e0ddd8;
   color: #c45c4a;
+}
+
+.card-inbox {
+  position: absolute;
+  top: 6px;
+  right: 30px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #f0efec;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  color: #999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  z-index: 5;
+  padding: 0;
+}
+
+.card-inbox:hover {
+  background: #fdf3e7;
+  color: #c7853a;
 }
 
 .connector-anchor {

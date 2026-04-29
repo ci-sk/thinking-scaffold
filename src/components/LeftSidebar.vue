@@ -9,6 +9,9 @@ const store = useCanvasStore()
 
 const activeTab = ref<'idea' | 'clip' | 'question'>('idea')
 
+const showWsDropdown = ref(false)
+const wsNameInput = ref('')
+
 const ideaInput = ref('')
 const clipLink = ref('')
 const clipContent = ref('')
@@ -46,25 +49,48 @@ function addQuestion() {
 function moveToCanvas(mode: 'idea' | 'clip' | 'question', item: InboxItem) {
   const typeMap: Record<string, 'idea' | 'quote' | 'question'> = { idea: 'idea', clip: 'quote', question: 'question' }
   const cardType = typeMap[mode] || 'idea'
-  const vpW = window.innerWidth - 300
-  const vpH = window.innerHeight - 56
 
   const el = document.querySelector(`[data-inbox-id="${item.id}"]`)
   if (el) el.classList.add('fly-out')
   setTimeout(() => {
     store.removeInboxItem(mode, item.id)
-    store.addCard({
-      type: cardType,
-      content: item.text,
-      source: item.tag || item.source || '',
-      position: { x: 100 + Math.random() * (vpW - 320), y: 120 + Math.random() * (vpH - 260) },
-    })
+    store.pendingPlacement = { type: cardType, content: item.text, source: item.tag || item.source || '' }
   }, 400)
 }
 </script>
 
 <template>
   <aside class="side-panel" :class="{ 'mobile-open': mobileOpen }">
+    <!-- Workspace selector -->
+    <div class="ws-selector" @click="showWsDropdown = !showWsDropdown">
+      <span class="ws-icon">📁</span>
+      <span class="ws-name">{{ store.workspaceList.find(w => w.id === store.activeWorkspaceId)?.name || '选择工作区' }}</span>
+      <span class="ws-arrow" :class="{ open: showWsDropdown }">▾</span>
+    </div>
+
+    <!-- Dropdown -->
+    <div v-if="showWsDropdown" class="ws-dropdown">
+      <div
+        v-for="ws in store.workspaceList" :key="ws.id"
+        class="ws-item"
+        :class="{ active: ws.id === store.activeWorkspaceId }"
+        @click="store.switchWorkspace(ws.id); showWsDropdown = false"
+      >
+        <span>{{ ws.id === store.activeWorkspaceId ? '•' : '' }}</span>
+        <span>{{ ws.name }}</span>
+        <button v-if="store.workspaceList.length > 1" class="ws-delete" @click.stop="store.deleteWorkspace(ws.id)">×</button>
+      </div>
+      <div class="ws-new">
+        <input
+          v-model="wsNameInput"
+          placeholder="新工作区名称"
+          class="ws-new-input"
+          @keydown.enter="store.createWorkspace(wsNameInput); wsNameInput = ''; showWsDropdown = false"
+        />
+        <button class="ws-new-btn" @click="store.createWorkspace(wsNameInput); wsNameInput = ''; showWsDropdown = false">＋</button>
+      </div>
+    </div>
+
     <div class="mode-tabs">
       <button
         v-for="tab in [
@@ -84,7 +110,7 @@ function moveToCanvas(mode: 'idea' | 'clip' | 'question', item: InboxItem) {
     <!-- 闪念 -->
     <div v-if="activeTab === 'idea'" class="mode-panel">
       <div class="input-area">
-        <textarea v-model="ideaInput" placeholder="突然冒出的想法..." rows="2" />
+        <textarea v-model="ideaInput" placeholder="突然冒出的想法...（回车提交，Shift+回车换行）" rows="2" @keydown.enter.prevent="addIdea" />
         <button class="btn-add" @click="addIdea">捕捉闪念</button>
       </div>
       <div class="inbox-list">
@@ -112,7 +138,7 @@ function moveToCanvas(mode: 'idea' | 'clip' | 'question', item: InboxItem) {
     <!-- 疑问 -->
     <div v-if="activeTab === 'question'" class="mode-panel">
       <div class="input-area">
-        <textarea v-model="questionInput" placeholder="为什么……？如果……会怎样？" rows="2" />
+        <textarea v-model="questionInput" placeholder="为什么……？如果……会怎样？（回车提交）" rows="2" @keydown.enter.prevent="addQuestion" />
         <button class="btn-add" @click="addQuestion">记录追问</button>
       </div>
       <div class="inbox-list">
@@ -135,6 +161,90 @@ function moveToCanvas(mode: 'idea' | 'clip' | 'question', item: InboxItem) {
   z-index: 30;
   transition: left 0.3s;
 }
+
+/* Workspace selector */
+.ws-selector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  cursor: pointer;
+  border-bottom: 1px solid #e8e4df;
+  font-size: 13px;
+  font-weight: 500;
+  color: #2c2c2c;
+  user-select: none;
+}
+.ws-selector:hover { background: #f9f8f6; }
+.ws-icon { font-size: 14px; }
+.ws-name { flex: 1; }
+.ws-arrow { color: #999; transition: transform 0.2s; font-size: 10px; }
+.ws-arrow.open { transform: rotate(180deg); }
+
+.ws-dropdown {
+  position: absolute;
+  top: 40px;
+  left: 4px;
+  right: 4px;
+  background: #fff;
+  border: 1px solid #e8e4df;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+  z-index: 40;
+  overflow: hidden;
+}
+
+.ws-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  color: #2c2c2c;
+}
+.ws-item:hover { background: #f5f3f0; }
+.ws-item.active { color: #c7853a; font-weight: 600; }
+.ws-delete {
+  margin-left: auto;
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: #ccc;
+  font-size: 14px;
+  display: flex; align-items: center; justify-content: center;
+}
+.ws-delete:hover { background: #fee; color: #c45c4a; }
+
+.ws-new {
+  display: flex;
+  padding: 8px 10px;
+  gap: 6px;
+  border-top: 1px solid #e8e4df;
+}
+.ws-new-input {
+  flex: 1;
+  border: 1px solid #e8e4df;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-family: inherit;
+  outline: none;
+}
+.ws-new-input:focus { border-color: #c7853a; }
+.ws-new-btn {
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: #c7853a;
+  color: #fff;
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 14px;
+}
+.ws-new-btn:hover { background: #b07530; }
 
 @media (max-width: 800px) {
   .side-panel {
