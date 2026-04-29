@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
-import type { Card, Connection, TopicGroup, CardType, RelationType, LineStyle } from '../types'
+import { ref } from 'vue'
+import type { Card, Connection, TopicGroup, CardType, InboxItem } from '../types'
 
 function uid(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8)
@@ -12,20 +12,9 @@ export const useCanvasStore = defineStore('canvas', () => {
   const topicGroups = ref<TopicGroup[]>([])
   const selectedCardIds = ref<Set<string>>(new Set())
 
-  const cardsByGroup = computed(() => {
-    const map: Record<string, Card[]> = {}
-    const ungrouped: Card[] = []
-    for (const c of cards.value) {
-      const group = topicGroups.value.find(g => g.cardIds.includes(c.id))
-      if (group) {
-        if (!map[group.id]) map[group.id] = []
-        map[group.id].push(c)
-      } else {
-        ungrouped.push(c)
-      }
-    }
-    return { grouped: map, ungrouped }
-  })
+  const inboxIdea = ref<InboxItem[]>([])
+  const inboxClip = ref<InboxItem[]>([])
+  const inboxQuestion = ref<InboxItem[]>([])
 
   function getCard(id: string): Card | undefined {
     return cards.value.find(c => c.id === id)
@@ -58,12 +47,11 @@ export const useCanvasStore = defineStore('canvas', () => {
 
   function deleteCard(id: string) {
     cards.value = cards.value.filter(c => c.id !== id)
-    connections.value = connections.value.filter(cn => cn.fromCardId !== id && cn.toCardId !== id)
+    connections.value = connections.value.filter(cn => cn.from !== id && cn.to !== id)
     topicGroups.value.forEach(g => {
       g.cardIds = g.cardIds.filter(cid => cid !== id)
     })
     topicGroups.value = topicGroups.value.filter(g => g.cardIds.length > 0)
-    selectedCardIds.value.delete(id)
   }
 
   function splitCard(id: string): Card | undefined {
@@ -100,26 +88,17 @@ export const useCanvasStore = defineStore('canvas', () => {
     target.updatedAt = Date.now()
   }
 
-  function addConnection(
-    fromCardId: string,
-    toCardId: string,
-    relationType: RelationType = 'related',
-    color?: string,
-    style?: LineStyle
-  ): Connection {
-    const existing = connections.value.find(
-      c => (c.fromCardId === fromCardId && c.toCardId === toCardId) ||
-           (c.fromCardId === toCardId && c.toCardId === fromCardId)
+  function addConnection(from: string, to: string, color?: string): Connection {
+    const exists = connections.value.find(
+      c => (c.from === from && c.to === to) || (c.from === to && c.to === from)
     )
-    if (existing) return existing
+    if (exists) return exists
 
     const conn: Connection = {
       id: uid(),
-      fromCardId,
-      toCardId,
-      relationType,
-      color: color || (relationType === 'support' ? '#74c476' : relationType === 'refute' ? '#e57373' : relationType === 'extend' ? '#6baed6' : '#bdbdbd'),
-      style: style || (relationType === 'refute' ? 'dashed' : relationType === 'extend' ? 'dotted' : 'solid'),
+      from,
+      to,
+      color: color || '#c7853a',
       createdAt: Date.now(),
     }
     connections.value.push(conn)
@@ -156,14 +135,53 @@ export const useCanvasStore = defineStore('canvas', () => {
     topicGroups.value = topicGroups.value.filter(g => g.id !== id)
   }
 
-  function getConnectionsForCard(cardId: string): Connection[] {
-    return connections.value.filter(c => c.fromCardId === cardId || c.toCardId === cardId)
+  function addInboxItem(mode: 'idea' | 'clip' | 'question', item: InboxItem) {
+    if (mode === 'idea') inboxIdea.value.push(item)
+    else if (mode === 'clip') inboxClip.value.push(item)
+    else inboxQuestion.value.push(item)
   }
 
-  function getConnectedCards(cardId: string): Card[] {
-    const conns = getConnectionsForCard(cardId)
-    const ids = new Set(conns.map(c => c.fromCardId === cardId ? c.toCardId : c.fromCardId))
-    return cards.value.filter(c => ids.has(c.id))
+  function removeInboxItem(mode: 'idea' | 'clip' | 'question', id: string) {
+    if (mode === 'idea') inboxIdea.value = inboxIdea.value.filter(i => i.id !== id)
+    else if (mode === 'clip') inboxClip.value = inboxClip.value.filter(i => i.id !== id)
+    else inboxQuestion.value = inboxQuestion.value.filter(i => i.id !== id)
+  }
+
+  function initSeedData() {
+    cards.value = [
+      { id:'c1', type:'quote', content:'用户增长的AARRR模型：留存是增长的核心引擎。', source:'《增长黑客》', tags:[], position:{x:60,y:70}, rotation:-1, createdAt:Date.now(), updatedAt:Date.now(), importance:2 },
+      { id:'c2', type:'quote', content:'留存率提升5%，利润可增长25%-95%。', source:'Bain报告', tags:[], position:{x:420,y:50}, rotation:1, createdAt:Date.now(), updatedAt:Date.now(), importance:3 },
+      { id:'c3', type:'idea', content:'游戏化激励或许能有效提升早期留存。', source:'自己的思考', tags:[], position:{x:50,y:290}, rotation:2, createdAt:Date.now(), updatedAt:Date.now(), importance:2 },
+      { id:'c4', type:'case', content:'XX签到机制：次日留存+18%，但第8天回落。', source:'内部分享', tags:[], position:{x:400,y:270}, rotation:-2, createdAt:Date.now(), updatedAt:Date.now(), importance:2 },
+      { id:'c5', type:'question', content:'外在激励会不会削弱内在动机？', source:'追问', tags:[], position:{x:200,y:430}, rotation:0, createdAt:Date.now(), updatedAt:Date.now(), importance:1 },
+    ]
+    connections.value = [
+      { id:'l1', from:'c1', to:'c2', color:'#a0b8c4', createdAt:Date.now() },
+      { id:'l2', from:'c3', to:'c4', color:'#b8c9b0', createdAt:Date.now() },
+      { id:'l3', from:'c1', to:'c3', color:'#d4c4a8', createdAt:Date.now() },
+      { id:'l4', from:'c3', to:'c5', color:'#c4b8d4', createdAt:Date.now() },
+    ]
+    inboxIdea.value = [
+      { id:'ii1', text:'用AI做个性化激励策略', source:'thought', tag:'闪念' },
+      { id:'ii2', text:'留存和体验有时矛盾', source:'thought', tag:'闪念' },
+    ]
+    inboxClip.value = [
+      { id:'ic1', text:'Duolingo streak让日活+40%', source:'web', tag:'微信', link:'', why:'习惯养成案例' },
+      { id:'ic2', text:'福格模型：B=MAP', source:'web', tag:'文章', link:'', why:'行为设计基础' },
+    ]
+    inboxQuestion.value = [
+      { id:'iq1', text:'为什么Game化对某些产品无效？', source:'question', tag:'疑惑' },
+    ]
+  }
+
+  function reset() {
+    cards.value = []
+    connections.value = []
+    topicGroups.value = []
+    inboxIdea.value = []
+    inboxClip.value = []
+    inboxQuestion.value = []
+    initSeedData()
   }
 
   return {
@@ -171,7 +189,9 @@ export const useCanvasStore = defineStore('canvas', () => {
     connections,
     topicGroups,
     selectedCardIds,
-    cardsByGroup,
+    inboxIdea,
+    inboxClip,
+    inboxQuestion,
     getCard,
     addCard,
     updateCard,
@@ -184,7 +204,9 @@ export const useCanvasStore = defineStore('canvas', () => {
     clearSelection,
     addTopicGroup,
     deleteTopicGroup,
-    getConnectionsForCard,
-    getConnectedCards,
+    addInboxItem,
+    removeInboxItem,
+    initSeedData,
+    reset,
   }
 })

@@ -1,242 +1,295 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useCanvasStore } from '../stores/canvas'
-import type { CardType } from '../types'
+import type { InboxItem } from '../types'
 
-const props = defineProps<{ visible: boolean }>()
-
-const emit = defineEmits<{
-  cardAdded: [msg: string]
-}>()
+defineProps<{ mobileOpen: boolean }>()
 
 const store = useCanvasStore()
 
-const activeTab = ref<'flash' | 'clip' | 'question' | 'skeleton'>('flash')
+const activeTab = ref<'idea' | 'clip' | 'question'>('idea')
 
-const flashText = ref('')
-const clipUrl = ref('')
-const clipExcerpt = ref('')
+const ideaInput = ref('')
+const clipLink = ref('')
+const clipContent = ref('')
 const clipWhy = ref('')
-const questionText = ref('')
-const skeletonText = ref('')
-const selectedType = ref<CardType>('idea')
+const questionInput = ref('')
 
-const tabs = [
-  { id: 'flash' as const, label: '闪念', icon: '💡' },
-  { id: 'clip' as const, label: '剪藏', icon: '📎' },
-  { id: 'question' as const, label: '追问', icon: '❓' },
-  { id: 'skeleton' as const, label: '骨架', icon: '🗂️' },
-]
+function uid() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 6)
+}
 
-const cardTypeOptions: { type: CardType; label: string; icon: string }[] = [
-  { type: 'idea', label: '想法', icon: '💡' },
-  { type: 'quote', label: '引用', icon: '📎' },
-  { type: 'case', label: '案例', icon: '📊' },
-  { type: 'question', label: '追问', icon: '❓' },
-]
+function addIdea() {
+  const text = ideaInput.value.trim()
+  if (!text) return
+  store.addInboxItem('idea', { id: uid(), text, source: 'thought', tag: '闪念' })
+  ideaInput.value = ''
+}
 
-function getDefaultPosition() {
+function addClip() {
+  const content = clipContent.value.trim()
+  const why = clipWhy.value.trim()
+  if (!content || !why) return
+  store.addInboxItem('clip', { id: uid(), text: content, source: 'web', tag: '剪藏', link: clipLink.value.trim(), why })
+  clipLink.value = ''
+  clipContent.value = ''
+  clipWhy.value = ''
+}
+
+function addQuestion() {
+  const text = questionInput.value.trim()
+  if (!text) return
+  store.addInboxItem('question', { id: uid(), text, source: 'question', tag: '追问' })
+  questionInput.value = ''
+}
+
+function moveToCanvas(mode: 'idea' | 'clip' | 'question', item: InboxItem) {
+  const typeMap: Record<string, 'idea' | 'quote' | 'question'> = { idea: 'idea', clip: 'quote', question: 'question' }
+  const cardType = typeMap[mode] || 'idea'
   const vpW = window.innerWidth - 300
   const vpH = window.innerHeight - 56
-  return {
-    x: vpW / 2 + (Math.random() - 0.5) * 200,
-    y: vpH / 2 + (Math.random() - 0.5) * 200,
-  }
-}
 
-function addFlashCard() {
-  const text = flashText.value.trim()
-  if (!text) return
-  const pos = getDefaultPosition()
-  store.addCard({
-    type: 'idea',
-    content: text,
-    position: pos,
-  })
-  flashText.value = ''
-  emit('cardAdded', '闪念已存入画布')
-}
-
-function addClipCard() {
-  const url = clipUrl.value.trim()
-  const excerpt = clipExcerpt.value.trim()
-  const why = clipWhy.value.trim()
-  if (!excerpt && !url) return
-  const content = [excerpt, url ? `\n来源: ${url}` : '', why ? `\n为什么重要: ${why}` : '']
-    .filter(Boolean)
-    .join('\n')
-  const pos = getDefaultPosition()
-  store.addCard({
-    type: selectedType.value === 'question' ? 'case' : selectedType.value,
-    content,
-    source: url,
-    position: pos,
-  })
-  clipUrl.value = ''
-  clipExcerpt.value = ''
-  clipWhy.value = ''
-  emit('cardAdded', '剪藏已存入画布')
-}
-
-function addQuestionCard() {
-  const text = questionText.value.trim()
-  if (!text) return
-  const pos = getDefaultPosition()
-  store.addCard({
-    type: 'question',
-    content: text.startsWith('为什么') ? text : `为什么${text}？`,
-    position: pos,
-  })
-  questionText.value = ''
-  emit('cardAdded', '追问已存入画布')
-}
-
-function addSkeletonCards() {
-  const text = skeletonText.value.trim()
-  if (!text) return
-  const lines = text.split('\n').filter(l => l.trim())
-  const pos = getDefaultPosition()
-  lines.forEach((line, i) => {
+  const el = document.querySelector(`[data-inbox-id="${item.id}"]`)
+  if (el) el.classList.add('fly-out')
+  setTimeout(() => {
+    store.removeInboxItem(mode, item.id)
     store.addCard({
-      type: 'idea',
-      content: line.replace(/^[-*•\d.]+\s*/, '').trim(),
-      position: { x: pos.x, y: pos.y + i * 170 },
+      type: cardType,
+      content: item.text,
+      source: item.tag || item.source || '',
+      position: { x: 100 + Math.random() * (vpW - 320), y: 120 + Math.random() * (vpH - 260) },
     })
-  })
-  skeletonText.value = ''
-  emit('cardAdded', `已添加 ${lines.length} 张骨架卡片`)
-}
-
-function handleVoiceInput() {
-  emit('cardAdded', '语音输入功能即将上线')
+  }, 400)
 }
 </script>
 
 <template>
-  <aside
-    class="shrink-0 bg-white border-r border-gray-200 flex flex-col overflow-hidden transition-all duration-300"
-    :style="{ width: visible ? '300px' : '0px', minWidth: visible ? '300px' : '0px' }"
-  >
-    <div class="p-4 border-b border-gray-100">
-      <div class="flex gap-1 bg-gray-50 rounded-lg p-1">
-        <button
-          v-for="tab in tabs"
-          :key="tab.id"
-          class="flex-1 text-xs font-medium py-1.5 px-1 rounded-md transition-colors"
-          :class="activeTab === tab.id ? 'bg-white text-warm shadow-sm' : 'text-gray-500 hover:text-gray-700'"
-          @click="activeTab = tab.id"
-        >
-          <span class="mr-0.5">{{ tab.icon }}</span>{{ tab.label }}
-        </button>
+  <aside class="side-panel" :class="{ 'mobile-open': mobileOpen }">
+    <div class="mode-tabs">
+      <button
+        v-for="tab in [
+          { id: 'idea' as const, label: '闪念', icon: '💡' },
+          { id: 'clip' as const, label: '剪藏', icon: '📎' },
+          { id: 'question' as const, label: '疑问', icon: '❓' },
+        ]"
+        :key="tab.id"
+        class="mode-tab"
+        :class="{ active: activeTab === tab.id }"
+        @click="activeTab = tab.id"
+      >
+        <span>{{ tab.icon }}</span> {{ tab.label }}
+      </button>
+    </div>
+
+    <!-- 闪念 -->
+    <div v-if="activeTab === 'idea'" class="mode-panel">
+      <div class="input-area">
+        <textarea v-model="ideaInput" placeholder="突然冒出的想法..." rows="2" />
+        <button class="btn-add" @click="addIdea">捕捉闪念</button>
+      </div>
+      <div class="inbox-list">
+        <div v-for="item in store.inboxIdea" :key="item.id" :data-inbox-id="item.id" class="inbox-item" @click="moveToCanvas('idea', item)">
+          <span class="item-dot idea" /><span class="flex-1">{{ item.text }}</span><span class="item-tag">{{ item.tag }}</span>
+        </div>
       </div>
     </div>
 
-    <div class="flex-1 overflow-y-auto p-4">
-      <!-- 闪念 -->
-      <div v-if="activeTab === 'flash'" class="flex flex-col gap-3">
-        <p class="text-xs text-gray-400">快速捕捉转瞬即逝的想法</p>
-        <textarea
-          v-model="flashText"
-          placeholder="写下你的想法..."
-          class="w-full h-32 text-sm border border-gray-200 rounded-lg p-3 resize-none focus:outline-none focus:border-warm focus:ring-1 focus:ring-warm/20 placeholder:text-gray-300"
-        />
-        <div class="flex gap-2">
-          <button
-            class="flex-1 py-2 rounded-lg text-sm font-medium bg-warm text-white hover:bg-warm-light transition-colors"
-            :class="{ 'opacity-50 cursor-not-allowed': !flashText.trim() }"
-            :disabled="!flashText.trim()"
-            @click="addFlashCard"
-          >
-            存入画布
-          </button>
-          <button
-            class="w-10 h-10 flex items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:bg-gray-50 transition-colors"
-            title="语音输入"
-            @click="handleVoiceInput"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
-          </button>
+    <!-- 剪藏 -->
+    <div v-if="activeTab === 'clip'" class="mode-panel">
+      <div class="input-area">
+        <input v-model="clipLink" type="text" placeholder="粘贴链接（可选）" />
+        <textarea v-model="clipContent" placeholder="摘录的文本..." rows="3" />
+        <input v-model="clipWhy" type="text" placeholder="你为什么觉得它重要？（必填）" />
+        <button class="btn-add" @click="addClip">存入剪藏</button>
+      </div>
+      <div class="inbox-list">
+        <div v-for="item in store.inboxClip" :key="item.id" :data-inbox-id="item.id" class="inbox-item" @click="moveToCanvas('clip', item)">
+          <span class="item-dot clip" /><span class="flex-1">{{ item.text }}</span><span class="item-tag">{{ item.tag }}</span>
         </div>
       </div>
+    </div>
 
-      <!-- 剪藏 -->
-      <div v-if="activeTab === 'clip'" class="flex flex-col gap-3">
-        <p class="text-xs text-gray-400">从外部来源摘录片段，必须标注为什么重要</p>
-        <input
-          v-model="clipUrl"
-          type="url"
-          placeholder="粘贴链接（选填）"
-          class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-warm placeholder:text-gray-300"
-        />
-        <textarea
-          v-model="clipExcerpt"
-          placeholder="摘录文本..."
-          class="w-full h-24 text-sm border border-gray-200 rounded-lg p-3 resize-none focus:outline-none focus:border-warm focus:ring-1 focus:ring-warm/20 placeholder:text-gray-300"
-        />
-        <div>
-          <label class="text-xs text-warm font-medium mb-1 block">为什么重要 *</label>
-          <textarea
-            v-model="clipWhy"
-            placeholder="这条信息为什么值得保留？"
-            class="w-full h-16 text-sm border-2 border-warm/30 rounded-lg p-3 resize-none bg-warm-bg focus:outline-none focus:border-warm focus:ring-1 focus:ring-warm/20 placeholder:text-gray-300"
-          />
-        </div>
-        <div class="flex gap-1">
-          <button
-            v-for="opt in cardTypeOptions"
-            :key="opt.type"
-            class="text-xs px-2 py-1 rounded-md transition-colors"
-            :class="selectedType === opt.type ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'"
-            @click="selectedType = opt.type"
-          >
-            {{ opt.icon }} {{ opt.label }}
-          </button>
-        </div>
-        <button
-          class="py-2 rounded-lg text-sm font-medium bg-warm text-white hover:bg-warm-light transition-colors"
-          :class="{ 'opacity-50 cursor-not-allowed': !clipExcerpt.trim() && !clipUrl.trim() }"
-          :disabled="!clipExcerpt.trim() && !clipUrl.trim()"
-          @click="addClipCard"
-        >
-          存入画布
-        </button>
+    <!-- 疑问 -->
+    <div v-if="activeTab === 'question'" class="mode-panel">
+      <div class="input-area">
+        <textarea v-model="questionInput" placeholder="为什么……？如果……会怎样？" rows="2" />
+        <button class="btn-add" @click="addQuestion">记录追问</button>
       </div>
-
-      <!-- 追问 -->
-      <div v-if="activeTab === 'question'" class="flex flex-col gap-3">
-        <p class="text-xs text-gray-400">记录你脑子里的疑惑和矛盾点</p>
-        <textarea
-          v-model="questionText"
-          placeholder="为什么……？"
-          class="w-full h-32 text-sm border border-gray-200 rounded-lg p-3 resize-none focus:outline-none focus:border-warm focus:ring-1 focus:ring-warm/20 placeholder:text-gray-300 font-serif italic"
-        />
-        <button
-          class="py-2 rounded-lg text-sm font-medium bg-warm text-white hover:bg-warm-light transition-colors"
-          :class="{ 'opacity-50 cursor-not-allowed': !questionText.trim() }"
-          :disabled="!questionText.trim()"
-          @click="addQuestionCard"
-        >
-          存入画布
-        </button>
-      </div>
-
-      <!-- 结构骨架 -->
-      <div v-if="activeTab === 'skeleton'" class="flex flex-col gap-3">
-        <p class="text-xs text-gray-400">输入大纲或列表，每行生成一张卡片</p>
-        <textarea
-          v-model="skeletonText"
-          placeholder="- 第一点&#10;- 第二点&#10;- 第三点"
-          class="w-full h-40 text-sm border border-gray-200 rounded-lg p-3 resize-none focus:outline-none focus:border-warm focus:ring-1 focus:ring-warm/20 placeholder:text-gray-300 font-mono"
-        />
-        <button
-          class="py-2 rounded-lg text-sm font-medium bg-warm text-white hover:bg-warm-light transition-colors"
-          :class="{ 'opacity-50 cursor-not-allowed': !skeletonText.trim() }"
-          :disabled="!skeletonText.trim()"
-          @click="addSkeletonCards"
-        >
-          生成骨架卡片
-        </button>
+      <div class="inbox-list">
+        <div v-for="item in store.inboxQuestion" :key="item.id" :data-inbox-id="item.id" class="inbox-item" @click="moveToCanvas('question', item)">
+          <span class="item-dot question" /><span class="flex-1">{{ item.text }}</span><span class="item-tag">{{ item.tag }}</span>
+        </div>
       </div>
     </div>
   </aside>
 </template>
+
+<style scoped>
+.side-panel {
+  width: 300px;
+  flex-shrink: 0;
+  border-right: 1px solid #e8e4df;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  z-index: 30;
+  transition: left 0.3s;
+}
+
+@media (max-width: 800px) {
+  .side-panel {
+    position: absolute;
+    left: -100%;
+    top: 0;
+    height: 100%;
+    width: 85%;
+    max-width: 320px;
+    z-index: 30;
+    border-radius: 0 18px 18px 0;
+    box-shadow: none;
+  }
+
+  .side-panel.mobile-open {
+    left: 0;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
+  }
+}
+
+.mode-tabs {
+  display: flex;
+  border-bottom: 1px solid #e8e4df;
+  background: #f9f8f6;
+}
+
+.mode-tab {
+  flex: 1;
+  padding: 12px 4px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 500;
+  color: #999;
+  cursor: pointer;
+  transition: all 0.2s;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.mode-tab.active {
+  color: #c7853a;
+  border-bottom-color: #c7853a;
+  background: #fff;
+  font-weight: 600;
+}
+
+.mode-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.input-area {
+  padding: 14px 14px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-bottom: 1px solid #e8e4df;
+}
+
+.input-area textarea,
+.input-area input[type="text"] {
+  border: 1px solid #e8e4df;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-family: inherit;
+  background: #fafaf8;
+  outline: none;
+  resize: vertical;
+  color: #2c2c2c;
+  transition: all 0.2s;
+}
+
+.input-area textarea:focus,
+.input-area input:focus {
+  border-color: #c7853a;
+  box-shadow: 0 0 0 3px rgba(199, 133, 58, 0.06);
+  background: #fff;
+}
+
+.btn-add {
+  align-self: flex-end;
+  padding: 8px 18px;
+  border-radius: 24px;
+  background: #c7853a;
+  color: #fff;
+  border: none;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-add:hover {
+  background: #b07530;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(199, 133, 58, 0.3);
+}
+
+.inbox-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.inbox-item {
+  padding: 12px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid transparent;
+  background: #fcfbf9;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #6b6b6b;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.inbox-item:hover {
+  background: #fff;
+  border-color: #e8e4df;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  color: #2c2c2c;
+}
+
+.item-dot { width: 7px; height: 7px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
+.item-dot.idea { background: #c7853a; }
+.item-dot.clip { background: #5b7f95; }
+.item-dot.question { background: #8b7da8; }
+
+.item-tag {
+  font-size: 10px;
+  background: #f0efec;
+  padding: 2px 7px;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+
+.fly-out {
+  animation: flyToCanvas 0.5s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+}
+
+@keyframes flyToCanvas {
+  0% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(0.3) translate(200px, -100px); opacity: 0; }
+}
+</style>

@@ -1,6 +1,7 @@
 export type CardType = 'idea' | 'quote' | 'case' | 'question'
 export type RelationType = 'support' | 'refute' | 'extend' | 'related'
 export type LineStyle = 'solid' | 'dashed' | 'dotted'
+export type AnchorDir = 'top' | 'bottom' | 'left' | 'right'
 
 export interface CardPosition {
   x: number
@@ -22,11 +23,11 @@ export interface Card {
 
 export interface Connection {
   id: string
-  fromCardId: string
-  toCardId: string
-  relationType: RelationType
+  from: string
+  to: string
   color: string
-  style: LineStyle
+  style?: LineStyle
+  label?: string
   createdAt: number
 }
 
@@ -38,19 +39,19 @@ export interface TopicGroup {
 }
 
 export const CARD_TYPE_CONFIG: Record<CardType, { label: string; icon: string; color: string }> = {
-  idea: { label: '想法', icon: '💡', color: '#e8a95b' },
-  quote: { label: '引用', icon: '📎', color: '#6baed6' },
-  case: { label: '案例', icon: '📊', color: '#74c476' },
-  question: { label: '追问', icon: '❓', color: '#9e9ac8' },
+  idea: { label: '想法', icon: '💡', color: '#c7853a' },
+  quote: { label: '引用', icon: '📖', color: '#5b7f95' },
+  case: { label: '案例', icon: '📊', color: '#6b8f71' },
+  question: { label: '追问', icon: '❓', color: '#8b7da8' },
 }
 
-export const RELATION_CONFIG: Record<RelationType, { label: string; style: LineStyle; color: string }> = {
-  support: { label: '支撑', style: 'solid', color: '#74c476' },
-  refute: { label: '反驳', style: 'dashed', color: '#e57373' },
-  extend: { label: '延伸', style: 'dotted', color: '#6baed6' },
-  related: { label: '相关', style: 'solid', color: '#bdbdbd' },
-}
+export const CARD_SIZE = { width: 220, height: 'auto' as const }
 
-export const CARD_SIZE = { width: 220, height: 140 }
-export const TOPBAR_HEIGHT = 56
-export const SIDEBAR_WIDTH = 300
+export interface InboxItem {
+  id: string
+  text: string
+  source: string
+  tag: string
+  link?: string
+  why?: string
+}

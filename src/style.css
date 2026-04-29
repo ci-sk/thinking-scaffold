@@ -1,34 +1,50 @@
 @import 'tailwindcss';
 
 @theme {
-  --color-warm: #c7853a;
-  --color-warm-light: #e8a95b;
-  --color-warm-bg: rgba(199, 133, 58, 0.08);
-  --color-cream: #faf8f5;
-  --color-canvas: #f0eee8;
-  --color-card-shadow: rgba(0, 0, 0, 0.06);
-  --color-card-shadow-hover: rgba(0, 0, 0, 0.12);
+  --color-accent: #c7853a;
+  --color-accent-soft: #fdf3e7;
+  --color-accent-glow: #f0c78e;
+  --color-bg: #faf8f5;
+  --color-canvas-bg: #f0ece7;
+  --color-surface: #ffffff;
+  --color-text: #2c2c2c;
+  --color-text-secondary: #6b6b6b;
+  --color-text-tertiary: #999999;
+  --color-border: #e8e4df;
 
-  --color-card-idea: #e8a95b;
-  --color-card-quote: #6baed6;
-  --color-card-case: #74c476;
-  --color-card-question: #9e9ac8;
+  --color-card-idea: #c7853a;
+  --color-card-quote: #5b7f95;
+  --color-card-case: #6b8f71;
+  --color-card-question: #8b7da8;
+  --color-card-red: #c45c4a;
 
-  --color-line-support: #74c476;
-  --color-line-refute: #e57373;
-  --color-line-extend: #6baed6;
-  --color-line-related: #bdbdbd;
+  --color-card-idea-soft: #fdf3e7;
+  --color-card-quote-soft: #eef4f8;
+  --color-card-case-soft: #edf5ee;
+  --color-card-question-soft: #f4f2f8;
 
-  --font-sans: 'Inter', 'PingFang SC', system-ui, sans-serif;
-  --font-serif: 'Georgia', 'Noto Serif SC', serif;
+  --color-line-default: #d0ccc4;
+  --color-line-idea: #d4c4a8;
+  --color-line-quote: #a0b8c4;
+  --color-line-case: #b8c9b0;
+  --color-line-question: #c4b8d4;
+
+  --font-sans: 'Inter', 'PingFang SC', 'Noto Sans SC', 'Microsoft YaHei', sans-serif;
+  --font-serif: 'Georgia', 'Noto Serif SC', 'STSong', serif;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06), 0 2px 6px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.1), 0 4px 10px rgba(0, 0, 0, 0.05);
+  --shadow-xl: 0 20px 50px rgba(0, 0, 0, 0.15), 0 8px 20px rgba(0, 0, 0, 0.07);
 }
 
 body {
   margin: 0;
   overflow: hidden;
   font-family: var(--font-sans);
-  background: var(--color-cream);
-  color: #333;
+  background: var(--color-canvas-bg);
+  color: var(--color-text);
+  -webkit-font-smoothing: antialiased;
 }
 
 #app {
@@ -38,10 +54,32 @@ body {
   flex-direction: column;
 }
 
-.card-shadow {
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.06);
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-.card-shadow-hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12), 0 2px 4px rgba(0, 0, 0, 0.08);
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(40px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes sparkle {
+  0%, 100% { transform: scale(1); opacity: 0.8; }
+  50% { transform: scale(1.3); opacity: 1; }
+}
+
+@keyframes pulse-dot {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(199, 133, 58, 0.5); }
+  50% { box-shadow: 0 0 0 10px rgba(199, 133, 58, 0); }
+}
+
+@keyframes flyToCanvas {
+  0% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(0.3) translate(200px, -100px); opacity: 0; }
 }
